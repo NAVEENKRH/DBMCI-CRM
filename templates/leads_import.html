@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Import Leads — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Import Leads from CSV</h1>
+
+<div class="bg-white rounded-xl border border-slate-200 p-6 max-w-lg space-y-4">
+  <p class="text-sm text-slate-600">
+    For a one-off file. For the live sheet you're using day to day, use
+    <a href="{{ url_for('leads_sync') }}" class="text-[#2a78d6] underline">Sync Sheet</a> instead — no export needed.
+    Here, export any CSV and upload it. On the next step you'll map its columns to
+    Name / Numbers / Lead Type / Responsible — any mobile number that already exists
+    will still be added, tagged "Duplicate" rather than merged or dropped.
+  </p>
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    <input type="file" name="csv_file" accept=".csv" required class="block w-full text-sm border border-slate-300 rounded-lg p-2">
+    <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Upload &amp; Continue</button>
+  </form>
+</div>
+
+{% endblock %}

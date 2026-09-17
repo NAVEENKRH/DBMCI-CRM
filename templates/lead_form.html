@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Add Lead — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Add Lead</h1>
+
+<form method="post" class="bg-white rounded-xl border border-slate-200 p-6 max-w-lg space-y-4">
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Name *</label>
+    <input type="text" name="name" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Numbers (Mobile) *</label>
+    <input type="text" name="phone" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Lead Type</label>
+    <select name="source" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <option value="">— none —</option>
+      {% for s in lead_types %}
+      <option value="{{ s }}">{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Responsible</label>
+    <select name="assigned_agent_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <option value="">Auto-assign (round robin)</option>
+      {% for a in all_agents %}
+      {% if a.role == 'agent' %}
+      <option value="{{ a.id }}">{{ a.name }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <p class="text-xs text-slate-400">Mobile number is the duplicate check key. If this number already exists, it will still be added — as a new row tagged "Duplicate" — nothing is merged or dropped.</p>
+  <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Add Lead</button>
+</form>
+
+{% endblock %}

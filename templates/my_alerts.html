@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}My Alerts — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-1">My Slack Alerts</h1>
+<p class="text-sm text-slate-500 mb-6">
+  Set your own personal webhook and you'll only get pinged for leads assigned to <span class="font-medium">you</span> —
+  Interested/Callback stage, with both a date and time set. If you leave this blank, you'll fall back to the shared team channel (if one's configured).
+</p>
+
+<div class="bg-white rounded-xl border border-slate-200 p-5 max-w-xl">
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Your Slack Incoming Webhook URL</label>
+      <input type="text" name="slack_webhook_url" value="{{ slack_webhook_url }}" placeholder="https://hooks.slack.com/services/..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono">
+      <p class="text-xs text-slate-400 mt-1">
+        In Slack: go to <a href="https://api.slack.com/apps" target="_blank" class="underline text-[#2a78d6]">api.slack.com/apps</a> →
+        Create New App → From scratch → your workspace → Incoming Webhooks → Activate →
+        Add New Webhook to Workspace → pick a channel or your own DM-to-self → copy the URL here.
+      </p>
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Save</button>
+  </form>
+</div>
+
+{% endblock %}

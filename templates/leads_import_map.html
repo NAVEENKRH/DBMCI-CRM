@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Map Columns — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-2">Map Your Columns</h1>
+<p class="text-sm text-slate-500 mb-6">Found {{ row_count }} rows. Match your sheet's columns to the fields below.</p>
+
+<form method="post" class="bg-white rounded-xl border border-slate-200 p-6 max-w-lg space-y-4">
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Name column *</label>
+    <select name="name_col" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      {% for h in headers %}
+      <option value="{{ h }}" {% if h == guess_name %}selected{% endif %}>{{ h }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Numbers (mobile) column *</label>
+    <select name="phone_col" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      {% for h in headers %}
+      <option value="{{ h }}" {% if h == guess_phone %}selected{% endif %}>{{ h }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Lead Type column</label>
+    <select name="source_col" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <option value="">— none, use default below —</option>
+      {% for h in headers %}
+      <option value="{{ h }}" {% if h == guess_source %}selected{% endif %}>{{ h }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Assigned agent column</label>
+    <select name="agent_col" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <option value="">— none, auto-assign round robin —</option>
+      {% for h in headers %}
+      <option value="{{ h }}" {% if h == guess_agent %}selected{% endif %}>{{ h }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-slate-700 mb-1">Default source (if no column, or blank cells)</label>
+    <input type="text" name="default_source" value="" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+  </div>
+  <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Import {{ row_count }} Rows</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,96 @@
+{% import "_status_badge.html" as sb %}
+
+{% if lead.status == 'Duplicate' and original %}
+<div class="mb-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-800">
+  ⚠ This mobile number already exists as
+  <a href="{{ url_for('lead_detail', lead_id=original.id) }}" class="underline font-medium">{{ original.name }} (lead #{{ original.id }}, owned by {{ original.agent_name or "Unassigned" }})</a>.
+  Kept as its own row per your process — talk to your manager about how to handle it.
+</div>
+{% endif %}
+
+{% if other_duplicates %}
+<div class="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+  ⚠ {{ other_duplicates|length }} other lead(s) share this mobile number:
+  {% for d in other_duplicates %}
+  <a href="{{ url_for('lead_detail', lead_id=d.id) }}" class="underline font-medium">{{ d.name }} (#{{ d.id }})</a>{% if not loop.last %}, {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="flex items-center gap-3 mb-1">
+  <div class="avatar-circle">{{ lead.name[0]|upper if lead.name else "?" }}</div>
+  <div>
+    <h2 class="text-lg font-bold leading-tight">{{ lead.name }}</h2>
+    <div class="mt-1">{{ sb.status_badge(lead.status) }}</div>
+  </div>
+  {% if message %}<span class="ml-auto text-xs text-emerald-600 font-semibold">✓ {{ message }}</span>{% endif %}
+</div>
+
+<div class="grid grid-cols-2 gap-3 text-sm mt-4 mb-5 bg-slate-50 rounded-lg p-3">
+  <div><span class="text-slate-400 block text-xs">Lead Type</span>{{ lead.source or "—" }}</div>
+  <div><span class="text-slate-400 block text-xs">Date</span>{{ lead.date_added or "—" }}</div>
+  <div><span class="text-slate-400 block text-xs">Numbers</span>{{ lead.phone or "—" }}</div>
+  <div><span class="text-slate-400 block text-xs">Responsible</span>{{ lead.agent_name or "Unassigned" }}</div>
+  {% if lead.email %}<div><span class="text-slate-400 block text-xs">Email</span>{{ lead.email }}</div>{% endif %}
+  {% if lead.yoa %}<div><span class="text-slate-400 block text-xs">Year of Admission</span>{{ lead.yoa }}</div>{% endif %}
+</div>
+
+{% if not editable %}
+<div class="mb-4 rounded-lg bg-slate-100 border border-slate-200 px-4 py-3 text-sm text-slate-600">
+  🔒 View-only — assigned to <span class="font-medium">{{ lead.agent_name or "Unassigned" }}</span>. Only they (or a full-access user) can update it.
+</div>
+{% else %}
+<form id="drawer-form" method="post" action="{{ url_for('lead_update', lead_id=lead.id) }}" class="space-y-3 mb-5">
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">Lead Stage *</label>
+    <select name="status" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      {% for s in stages %}
+      <option value="{{ s }}" {% if lead.status == s %}selected{% endif %}>{{ s if s else "— Not called —" }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if acting_agent.full_access %}
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">Responsible</label>
+    <select name="assigned_agent_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <option value="">Unassigned</option>
+      {% for a in all_agents %}
+      {% if a.role == 'agent' %}
+      <option value="{{ a.id }}" {% if lead.assigned_agent_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div class="grid grid-cols-2 gap-3">
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Follow-up Date</label>
+      <input type="date" name="next_action_date" value="{{ lead.next_action_date or '' }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Follow-up Time</label>
+      <input type="time" name="next_action_time" value="{{ lead.next_action_time or '' }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">Remark (optional)</label>
+    <textarea name="note" rows="2" placeholder="What did the prospect say?" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+  </div>
+  <p class="text-xs text-slate-400">Date + time together trigger a reminder (Interested/Callback only). Date alone is just saved for you to track yourself.</p>
+  <button type="submit" class="w-full px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-semibold hover:bg-[#1f5fb0]">Save</button>
+</form>
+{% endif %}
+
+<div>
+  <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Remarks History</h3>
+  <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
+    {% for act in activities %}
+    <div class="border-l-2 border-[#2a78d6]/30 pl-3">
+      <div class="text-sm text-slate-800">{{ act.note }}</div>
+      <div class="text-xs text-slate-400 mt-0.5">{{ act.agent_name or "System" }} · {{ act.created_at }}</div>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400">No remarks yet.</p>
+    {% endfor %}
+  </div>
+</div>

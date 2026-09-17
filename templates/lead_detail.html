@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<a href="{{ url_for('leads_list') }}" class="text-sm text-slate-500 hover:underline">&larr; Back to leads</a>
+
+<div class="max-w-lg mt-4 bg-white rounded-xl border border-slate-200 p-5">
+  {% include "_lead_panel_content.html" %}
+</div>
+
+{% endblock %}

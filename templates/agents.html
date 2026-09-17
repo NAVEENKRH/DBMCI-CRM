@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Agents — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-1">Agents &amp; Access</h1>
+<p class="text-sm text-slate-500 mb-6">Accounts are provisioned here — there's no self-signup. Give each person their email and password directly.</p>
+
+<div class="space-y-6">
+  <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+        <tr>
+          <th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Email</th>
+          <th class="px-4 py-2 text-left">Role</th>
+          <th class="px-4 py-2 text-left">Leads</th>
+          <th class="px-4 py-2 text-left">Access</th>
+          <th class="px-4 py-2 text-left">Status</th>
+          <th class="px-4 py-2 text-left"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in agents %}
+        <tr class="border-t border-slate-100">
+          <td class="px-4 py-2 font-medium">{{ a.name }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ a.email or "—" }}</td>
+          <td class="px-4 py-2 text-slate-500 capitalize">{{ a.role }}</td>
+          <td class="px-4 py-2 text-slate-500">{{ a.lead_count if a.role == 'agent' else '—' }}</td>
+          <td class="px-4 py-2">
+            {% if a.full_access %}
+            <span class="badge bg-[#eaf1fb] text-[#1f5fb0]">Full access</span>
+            {% else %}
+            <span class="badge bg-slate-100 text-slate-600">Own leads only</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">
+            {% if a.active %}
+            <span class="badge bg-emerald-50 text-emerald-700">Active</span>
+            {% else %}
+            <span class="badge bg-slate-200 text-slate-600">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-right">
+            <div class="flex flex-col items-end gap-1">
+              <div class="space-x-2">
+                {% if a.role == 'agent' %}
+                <form method="post" action="{{ url_for('agent_full_access_toggle', agent_id=a.id) }}" class="inline">
+                  <button type="submit" class="text-xs text-[#2a78d6] hover:underline">{{ "Restrict" if a.full_access else "Grant full access" }}</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('agent_toggle', agent_id=a.id) }}" class="inline">
+                  <button type="submit" class="text-xs text-[#2a78d6] hover:underline">{{ "Deactivate" if a.active else "Activate" }}</button>
+                </form>
+              </div>
+              <form method="post" action="{{ url_for('agent_reset_password', agent_id=a.id) }}" class="flex gap-1">
+                <input type="password" name="password" placeholder="New password" class="border border-slate-300 rounded px-2 py-0.5 text-xs w-28">
+                <button type="submit" class="text-xs text-[#2a78d6] hover:underline">Set</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">No one added yet. Add your team &rarr;</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4 max-w-lg">
+    <h2 class="font-semibold text-slate-700 mb-3">Add Person</h2>
+    <form method="post" class="flex flex-wrap gap-3 items-end">
+      <input type="text" name="name" required placeholder="Name" class="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[120px]">
+      <input type="email" name="email" required placeholder="Email" class="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[160px]">
+      <input type="password" name="password" required placeholder="Password" class="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[120px]">
+      <select name="role" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <option value="agent">Agent</option>
+        <option value="manager">Manager (full access)</option>
+      </select>
+      <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Add</button>
+    </form>
+    <p class="text-xs text-slate-400 mt-3">Give this email + password to the person directly — there's no invite email sent. New leads are assigned round-robin across active agents only, continuing from wherever it last stopped. Managers and full-access agents don't participate in the rotation.</p>
+  </div>
+</div>
+
+{% endblock %}

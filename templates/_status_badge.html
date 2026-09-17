@@ -1,0 +1,22 @@
+{% macro status_badge(status) %}
+{% set colors = {
+  '': 'bg-slate-100 text-slate-500',
+  'DNP': 'bg-amber-100 text-amber-800',
+  'Interested': 'bg-emerald-100 text-emerald-800',
+  'Not Interested': 'bg-slate-200 text-slate-600',
+  'Other': 'bg-yellow-100 text-yellow-800',
+  'Closed': 'bg-blue-100 text-blue-800',
+  'call back': 'bg-violet-100 text-violet-800',
+  'LOST': 'bg-rose-100 text-rose-800',
+  'buy later': 'bg-teal-100 text-teal-800',
+  'Already a pro user': 'bg-slate-200 text-slate-700',
+  'LOST ONLINE /OFFLINE': 'bg-rose-100 text-rose-800',
+  'REFUSE TO ENGAGE': 'bg-red-100 text-red-800',
+  'WAITING FOR COUNSELLING': 'bg-sky-100 text-sky-800',
+  'duplicate': 'bg-red-100 text-red-800',
+  'NOT A DOCTOR': 'bg-slate-200 text-slate-700',
+  'Got PG seat': 'bg-green-100 text-green-800',
+  'INT - DNP': 'bg-orange-100 text-orange-800'
+} %}
+<span class="badge {{ colors.get(status, 'bg-slate-100 text-slate-700') }}">{{ status if status else '— Not called —' }}</span>
+{% endmacro %}

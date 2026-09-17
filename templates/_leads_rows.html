@@ -1,0 +1,16 @@
+{% import "_status_badge.html" as sb %}
+{% for l in leads %}
+<tr class="border-t border-slate-100 hover:bg-slate-50 {{ 'bg-rose-50/50' if l.status == 'Duplicate' }}">
+  <td class="px-4 py-2 text-slate-500">
+    {% if l.source %}<span class="inline-block bg-slate-100 rounded px-2 py-0.5 text-xs">{{ l.source }}</span>{% endif %}
+  </td>
+  <td class="px-4 py-2 text-slate-500">{{ l.date_added or "—" }}</td>
+  <td class="px-4 py-2"><a href="{{ url_for('lead_detail', lead_id=l.id) }}" class="lead-link font-medium text-[#1f5fb0] hover:underline" data-id="{{ l.id }}">{{ l.name }}</a></td>
+  <td class="px-4 py-2 text-slate-500">{{ l.phone }}</td>
+  <td class="px-4 py-2 text-slate-500">{{ l.agent_name or "Unassigned" }}</td>
+  <td class="px-4 py-2">{{ sb.status_badge(l.status) }}</td>
+  <td class="px-4 py-2 text-slate-500">{{ format_followup(l.next_action_date, l.next_action_time) }}</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">No leads found. <a href="{{ url_for('lead_new') }}" class="text-[#2a78d6]">Add one</a> or <a href="{{ url_for('leads_sync') }}" class="text-[#2a78d6]">sync from the sheet</a>.</td></tr>
+{% endfor %}

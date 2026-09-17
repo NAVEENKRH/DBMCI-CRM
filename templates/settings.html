@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Settings — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-1">Settings</h1>
+<p class="text-sm text-slate-500 mb-6">Slack alerts fire only for Interested/Callback leads once both a follow-up date and time are set — nothing else pings.</p>
+
+<div class="bg-white rounded-xl border border-slate-200 p-5 max-w-xl">
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Slack Incoming Webhook URL</label>
+      <input type="text" name="slack_webhook_url" value="{{ slack_webhook_url }}" placeholder="https://hooks.slack.com/services/..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono">
+      <p class="text-xs text-slate-400 mt-1">
+        In Slack: go to <a href="https://api.slack.com/apps" target="_blank" class="underline text-[#2a78d6]">api.slack.com/apps</a> →
+        Create New App → From scratch → pick your workspace → Incoming Webhooks → Activate →
+        Add New Webhook to Workspace → choose the channel → copy the URL here.
+      </p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">CRM link base (used in Slack messages)</label>
+      <input type="text" name="public_base_url" value="{{ public_base_url }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+      <p class="text-xs text-slate-400 mt-1">The LAN URL others use to reach this CRM — so the Slack message's link actually opens the lead.</p>
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">Save</button>
+  </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% import "_status_badge.html" as sb %}
+{% block title %}Leads — DBMCI Sales CRM{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-bold">Leads <span class="text-slate-400 font-normal text-lg">({{ leads|length }})</span></h1>
+  <div class="flex gap-2">
+    {% if acting_agent.full_access %}
+    <a href="{{ url_for('leads_sync') }}" class="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium hover:bg-slate-50">Sync Sheet</a>
+    {% endif %}
+    <a href="{{ url_for('lead_new') }}" class="px-4 py-2 rounded-lg bg-[#2a78d6] text-white text-sm font-medium hover:bg-[#1f5fb0]">+ Add Lead</a>
+  </div>
+</div>
+
+<form method="get" class="bg-white rounded-xl border border-slate-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="block text-xs text-slate-500 mb-1">Search</label>
+    <input type="text" name="q" value="{{ search }}" placeholder="Name or number" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-48">
+  </div>
+  <div>
+    <label class="block text-xs text-slate-500 mb-1">Lead Stage</label>
+    <select name="status" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+      <option value="__all__" {% if filter_status == "__all__" %}selected{% endif %}>All</option>
+      {% for s in stages %}
+      <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s if s else "Not called" }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-500 mb-1">Responsible</label>
+    <select name="agent_id" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+      <option value="">All</option>
+      {% for a in all_agents %}
+      {% if a.role == 'agent' %}
+      <option value="{{ a.id }}" {% if filter_agent == a.id|string %}selected{% endif %}>{{ a.name }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-500 mb-1">Lead Type</label>
+    <select name="source" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+      <option value="">All</option>
+      {% for s in all_sources %}
+      <option value="{{ s }}" {% if filter_source == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="px-4 py-1.5 rounded-lg bg-slate-800 text-white text-sm font-medium">Filter</button>
+  <a href="{{ url_for('leads_list') }}" class="px-4 py-1.5 rounded-lg text-sm text-slate-500">Clear</a>
+</form>
+
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-2 text-left">Lead Type</th>
+        <th class="px-4 py-2 text-left">Date</th>
+        <th class="px-4 py-2 text-left">Name</th>
+        <th class="px-4 py-2 text-left">Numbers</th>
+        <th class="px-4 py-2 text-left">Responsible</th>
+        <th class="px-4 py-2 text-left">Lead Stage</th>
+        <th class="px-4 py-2 text-left">Follow-up</th>
+      </tr>
+    </thead>
+    <tbody id="leads-tbody">
+      {% include "_leads_rows.html" %}
+    </tbody>
+  </table>
+</div>
+
+<div id="drawer-overlay" class="fixed inset-0 bg-black/30 hidden z-40"></div>
+<div id="drawer" class="fixed top-0 right-0 h-full w-full sm:w-[440px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-200 overflow-y-auto">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white">
+    <span class="text-sm font-semibold text-slate-500">Lead Details</span>
+    <button type="button" id="drawer-close-btn" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+  </div>
+  <div class="p-5" id="drawer-content"></div>
+</div>
+
+<script>
+(function () {
+  const overlay = document.getElementById('drawer-overlay');
+  const drawer = document.getElementById('drawer');
+  const content = document.getElementById('drawer-content');
+
+  function openDrawer() {
+    overlay.classList.remove('hidden');
+    drawer.classList.remove('translate-x-full');
+  }
+  function closeDrawer() {
+    overlay.classList.add('hidden');
+    drawer.classList.add('translate-x-full');
+  }
+  async function loadLead(id) {
+    content.innerHTML = '<p class="text-sm text-slate-400">Loading…</p>';
+    openDrawer();
+    const res = await fetch(`/leads/${id}/fragment`);
+    content.innerHTML = await res.text();
+  }
+  async function refreshTable() {
+    const res = await fetch(window.location.href);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const fresh = doc.getElementById('leads-tbody');
+    if (fresh) document.getElementById('leads-tbody').innerHTML = fresh.innerHTML;
+  }
+
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('.lead-link');
+    if (link) {
+      e.preventDefault();
+      loadLead(link.dataset.id);
+      return;
+    }
+    if (e.target === overlay || e.target.id === 'drawer-close-btn') {
+      closeDrawer();
+    }
+  });
+
+  document.addEventListener('submit', async function (e) {
+    if (!e.target.matches('#drawer-form')) return;
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    const res = await fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (res.ok) {
+      closeDrawer();
+      refreshTable();
+    } else {
+      content.innerHTML = await res.text();
+    }
+  });
+})();
+</script>
+
+{% endblock %}
