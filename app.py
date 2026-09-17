@@ -16,7 +16,6 @@ import db
 app = Flask(__name__)
 app.secret_key = os.environ.get("CRM_SECRET_KEY", "dev-secret-change-me")
 app.jinja_env.globals["format_followup"] = db.format_followup
-app.jinja_env.globals["tel_href"] = db.tel_href
 
 DEFAULT_SHEET_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/"

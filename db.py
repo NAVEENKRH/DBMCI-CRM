@@ -193,13 +193,6 @@ def now_iso():
     return datetime.now().isoformat(timespec="seconds")
 
 
-def tel_href(phone):
-    """A tel: link opens the phone's own dialer with the number pre-filled —
-    standard click-to-call, no integration or service needed."""
-    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
-    return f"tel:+{digits}" if digits else ""
-
-
 def format_followup(date_str, time_str):
     if not date_str:
         return "—"

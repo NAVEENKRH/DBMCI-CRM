@@ -6,9 +6,7 @@
   </td>
   <td class="px-4 py-2 text-slate-500">{{ l.date_added or "—" }}</td>
   <td class="px-4 py-2"><a href="{{ url_for('lead_detail', lead_id=l.id) }}" class="lead-link font-medium text-[#1f5fb0] hover:underline" data-id="{{ l.id }}">{{ l.name }}</a></td>
-  <td class="px-4 py-2 text-slate-500">
-    {% if l.phone %}<a href="{{ tel_href(l.phone) }}" class="hover:text-[#2a78d6] hover:underline" onclick="event.stopPropagation()">📞 {{ l.phone }}</a>{% endif %}
-  </td>
+  <td class="px-4 py-2 text-slate-500">{{ l.phone or "" }}</td>
   <td class="px-4 py-2 text-slate-500">{{ l.agent_name or "Unassigned" }}</td>
   <td class="px-4 py-2">{{ sb.status_badge(l.status) }}</td>
   <td class="px-4 py-2 text-slate-500">{{ format_followup(l.next_action_date, l.next_action_time) }}</td>
