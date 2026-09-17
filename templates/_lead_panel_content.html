@@ -1,6 +1,6 @@
 {% import "_status_badge.html" as sb %}
 
-{% if lead.status == 'Duplicate' and original %}
+{% if lead.status == 'duplicate' and original %}
 <div class="mb-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-800">
   ⚠ This mobile number already exists as
   <a href="{{ url_for('lead_detail', lead_id=original.id) }}" class="underline font-medium">{{ original.name }} (lead #{{ original.id }}, owned by {{ original.agent_name or "Unassigned" }})</a>.
@@ -29,7 +29,7 @@
 <div class="grid grid-cols-2 gap-3 text-sm mt-4 mb-5 bg-slate-50 rounded-lg p-3">
   <div><span class="text-slate-400 block text-xs">Lead Type</span>{{ lead.source or "—" }}</div>
   <div><span class="text-slate-400 block text-xs">Date</span>{{ lead.date_added or "—" }}</div>
-  <div><span class="text-slate-400 block text-xs">Numbers</span>{{ lead.phone or "—" }}</div>
+  <div><span class="text-slate-400 block text-xs">Numbers</span>{% if lead.phone %}<a href="{{ tel_href(lead.phone) }}" class="font-medium text-[#1f5fb0] hover:underline">📞 {{ lead.phone }}</a>{% else %}—{% endif %}</div>
   <div><span class="text-slate-400 block text-xs">Responsible</span>{{ lead.agent_name or "Unassigned" }}</div>
   {% if lead.email %}<div><span class="text-slate-400 block text-xs">Email</span>{{ lead.email }}</div>{% endif %}
   {% if lead.yoa %}<div><span class="text-slate-400 block text-xs">Year of Admission</span>{{ lead.yoa }}</div>{% endif %}

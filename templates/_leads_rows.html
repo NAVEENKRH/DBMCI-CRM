@@ -1,12 +1,14 @@
 {% import "_status_badge.html" as sb %}
 {% for l in leads %}
-<tr class="border-t border-slate-100 hover:bg-slate-50 {{ 'bg-rose-50/50' if l.status == 'Duplicate' }}">
+<tr class="border-t border-slate-100 hover:bg-slate-50 {{ 'bg-rose-50/50' if l.status == 'duplicate' }}">
   <td class="px-4 py-2 text-slate-500">
     {% if l.source %}<span class="inline-block bg-slate-100 rounded px-2 py-0.5 text-xs">{{ l.source }}</span>{% endif %}
   </td>
   <td class="px-4 py-2 text-slate-500">{{ l.date_added or "—" }}</td>
   <td class="px-4 py-2"><a href="{{ url_for('lead_detail', lead_id=l.id) }}" class="lead-link font-medium text-[#1f5fb0] hover:underline" data-id="{{ l.id }}">{{ l.name }}</a></td>
-  <td class="px-4 py-2 text-slate-500">{{ l.phone }}</td>
+  <td class="px-4 py-2 text-slate-500">
+    {% if l.phone %}<a href="{{ tel_href(l.phone) }}" class="hover:text-[#2a78d6] hover:underline" onclick="event.stopPropagation()">📞 {{ l.phone }}</a>{% endif %}
+  </td>
   <td class="px-4 py-2 text-slate-500">{{ l.agent_name or "Unassigned" }}</td>
   <td class="px-4 py-2">{{ sb.status_badge(l.status) }}</td>
   <td class="px-4 py-2 text-slate-500">{{ format_followup(l.next_action_date, l.next_action_time) }}</td>
