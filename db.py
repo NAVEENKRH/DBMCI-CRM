@@ -3,8 +3,23 @@ from datetime import datetime
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Every request was opening a brand-new TCP+SSL connection to the remote
+# Postgres (several times per page, once per helper that calls get_db()) —
+# with the DB across the internet that made even a single page load slow.
+# A pool keeps a handful of connections open and reuses them instead.
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        _pool = psycopg2.pool.ThreadedConnectionPool(1, 5, DATABASE_URL, connect_timeout=10)
+    return _pool
+
 
 # "" (blank) = not called yet. Must stay first so the dropdown/column starts empty.
 # This is the real production stage vocabulary (from the actual sheet/dropdown),
@@ -167,11 +182,22 @@ class _PGConnection:
         self._conn.commit()
 
     def close(self):
-        self._conn.close()
+        # Returned to the pool, not actually torn down. Roll back first so
+        # any uncommitted work (or a query that errored mid-transaction)
+        # doesn't leak into the next request that reuses this connection.
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+        _get_pool().putconn(self._conn)
 
 
 def get_db():
-    raw = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+    pool = _get_pool()
+    raw = pool.getconn()
+    if raw.closed:
+        pool.putconn(raw, close=True)
+        raw = pool.getconn()
     return _PGConnection(raw)
 
 
