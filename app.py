@@ -134,6 +134,7 @@ def reminder_worker():
     own personal webhook is used when they've set one (Settings > My Alerts);
     otherwise it falls back to the shared team webhook."""
     while True:
+        conn = None
         try:
             conn = db.get_db()
             base_url = get_setting(conn, "public_base_url", "http://127.0.0.1:5050")
@@ -169,9 +170,15 @@ def reminder_worker():
                             "UPDATE leads SET reminder_alerted = 1 WHERE id = ?", (r["id"],)
                         )
                         conn.commit()
-            conn.close()
         except Exception:
             pass
+        finally:
+            # Any exception above (a bad row, a network hiccup, Slack being
+            # down) used to skip conn.close() entirely — since this loop runs
+            # every 20 seconds forever, that slowly leaked every connection
+            # out of the pool until nothing else in the app could get one.
+            if conn is not None:
+                conn.close()
         time.sleep(20)
 
 
@@ -773,6 +780,28 @@ def leads_sync_run():
     reader = csv.DictReader(io.StringIO(content))
     rows = [{(k or "").strip(): (v or "").strip() for k, v in row.items()} for row in reader]
 
+    try:
+        added, duplicates, skipped, invalid, already_synced = _sync_rows(conn, rows)
+    except Exception as e:
+        # Whatever broke, roll back and hand the connection back to the pool
+        # (conn.close() rolls back first) rather than leaking it out of the
+        # pool and 500ing — a leaked connection here used to eventually take
+        # the whole app down, not just this one sync.
+        flash(f"Sync failed partway through ({e}). Nothing was saved — safe to try again.", "warning")
+        return redirect(url_for("leads_sync"))
+    finally:
+        conn.close()
+
+    flash(
+        f"Synced: {added} new leads added, {duplicates} flagged as duplicates (kept, not merged), "
+        f"{skipped} skipped (blank name), {invalid} skipped (not a valid phone number). "
+        f"{len(rows) - already_synced} row(s) were new since last sync.",
+        "success",
+    )
+    return redirect(url_for("leads_list"))
+
+
+def _sync_rows(conn, rows):
     already_synced = int(get_setting(conn, "sheet_synced_rows", 0))
     new_rows = rows[already_synced:]
 
@@ -938,15 +967,7 @@ def leads_sync_run():
 
     set_setting(conn, "sheet_synced_rows", len(rows))
     conn.commit()
-    conn.close()
-
-    flash(
-        f"Synced: {added} new leads added, {duplicates} flagged as duplicates (kept, not merged), "
-        f"{skipped} skipped (blank name), {invalid} skipped (not a valid phone number). "
-        f"{len(rows) - already_synced} row(s) were new since last sync.",
-        "success",
-    )
-    return redirect(url_for("leads_list"))
+    return added, duplicates, skipped, invalid, already_synced
 
 
 # ---------- routes: manual CSV import (fallback / other files) ----------

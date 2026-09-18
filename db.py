@@ -165,8 +165,9 @@ class _PGConnection:
     this app was originally written against: `.execute()` directly on the
     connection, `?` placeholders, dict-style row access, `.commit()`, `.close()`."""
 
-    def __init__(self, conn):
+    def __init__(self, conn, pooled=True):
         self._conn = conn
+        self._pooled = pooled
 
     def execute(self, query, params=()):
         cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -189,12 +190,24 @@ class _PGConnection:
             self._conn.rollback()
         except Exception:
             pass
-        _get_pool().putconn(self._conn)
+        if self._pooled:
+            _get_pool().putconn(self._conn)
+        else:
+            self._conn.close()
 
 
 def get_db():
     pool = _get_pool()
-    raw = pool.getconn()
+    try:
+        raw = pool.getconn()
+    except psycopg2.pool.PoolError:
+        # The pool is exhausted — most likely a connection leak somewhere
+        # else in the app. Rather than 500ing every page until the process
+        # restarts, fall back to a one-off connection outside the pool so
+        # this request still works; close() knows not to return it to the
+        # pool since it was never checked out from it.
+        raw = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+        return _PGConnection(raw, pooled=False)
     if raw.closed:
         pool.putconn(raw, close=True)
         raw = pool.getconn()
