@@ -102,6 +102,11 @@
     <div class="text-xs text-slate-400 mt-0.5">Leads marked Closed ({{ kpis.converted }})</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Connected → Close Rate</div>
+    <div class="text-2xl font-bold mt-1 text-[#0a7a0a]">{{ kpis.close_rate_of_connected }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Of leads actually reached, how many closed — real closing skill</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Lost Rate</div>
     <div class="text-2xl font-bold mt-1 text-rose-600">{{ kpis.lost_rate }}%</div>
     <div class="text-xs text-slate-400 mt-0.5">Not Interested, LOST, or refused to engage</div>
@@ -205,6 +210,12 @@
           label: 'Conversion %',
           data: agentData.map(r => r.conversion_rate),
           backgroundColor: '#0a7a0a',
+          borderRadius: 3,
+        },
+        {
+          label: 'Close % of Connected',
+          data: agentData.map(r => r.close_rate_of_connected),
+          backgroundColor: '#f59e0b',
           borderRadius: 3,
         },
       ],

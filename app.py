@@ -520,6 +520,12 @@ def dashboard():
         connected_count=connected_count,
         conversion_rate=pct(converted, total_leads),
         converted=converted,
+        # Of the total, "conversion rate" also captures how many leads were
+        # even reachable — this isolates actual closing skill from that, by
+        # only counting closes against leads a conversation actually happened
+        # with. This is the number that says who's good at closing, not just
+        # who got the easier leads.
+        close_rate_of_connected=pct(converted, connected_count),
         duplicate_rate=pct(duplicate_count, total_leads),
         lost_rate=pct(lost_count, total_leads),
         overdue_count=overdue_count,
@@ -550,6 +556,7 @@ def dashboard():
             "agent": r["name"],
             "connected_rate": pct(r["connected"], r["total"]),
             "conversion_rate": pct(r["closed"], r["total"]),
+            "close_rate_of_connected": pct(r["closed"], r["connected"]),
         }
         for r in agent_breakdown
     ]
