@@ -82,38 +82,44 @@
     <div class="text-2xl font-bold mt-1 text-slate-500">{{ not_called }}</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
-    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Call Rate</div>
-    <div class="text-2xl font-bold mt-1">{{ kpis.call_rate }}%</div>
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Attempt Rate</div>
+    <div class="text-2xl font-bold mt-1">{{ kpis.attempt_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Leads an agent has dialed, reached or not</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">DNP Rate</div>
+    <div class="text-2xl font-bold mt-1 text-slate-500">{{ kpis.dnp_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Dialed but never picked up ({{ kpis.dnp_count }})</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Connected Rate</div>
+    <div class="text-2xl font-bold mt-1 text-[#0a7a0a]">{{ kpis.connected_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Leads a real conversation happened with ({{ kpis.connected_count }})</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Conversion Rate</div>
     <div class="text-2xl font-bold mt-1 text-[#0a7a0a]">{{ kpis.conversion_rate }}%</div>
-    <div class="text-xs text-slate-400 mt-0.5">{{ kpis.converted }} closed</div>
+    <div class="text-xs text-slate-400 mt-0.5">Leads marked Closed ({{ kpis.converted }})</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Lost Rate</div>
     <div class="text-2xl font-bold mt-1 text-rose-600">{{ kpis.lost_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Not Interested, LOST, or refused to engage</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Duplicate Rate</div>
     <div class="text-2xl font-bold mt-1 text-slate-500">{{ kpis.duplicate_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">Same number added more than once</div>
   </div>
   <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Overdue Follow-ups</div>
     <div class="text-2xl font-bold mt-1 text-amber-600">{{ kpis.overdue_count }}</div>
+    <div class="text-xs text-slate-400 mt-0.5">Follow-up date has passed, still unresolved</div>
   </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden lg:col-span-1">
-    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
-      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Lead Stage Distribution</h2>
-    </div>
-    <div class="p-4" style="height: 260px;">
-      <canvas id="stageChart"></canvas>
-    </div>
-  </div>
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden lg:col-span-2">
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
       <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Leads Added Over Time</h2>
     </div>
@@ -121,31 +127,29 @@
       <canvas id="trendChart"></canvas>
     </div>
   </div>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Pipeline Funnel</h2>
+    </div>
+    <div class="p-4" style="height: 260px;">
+      <canvas id="funnelChart"></canvas>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Agent Leaderboard</h2>
+    </div>
+    <div class="p-4" style="height: 260px;">
+      <canvas id="agentChart"></canvas>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
-  const stageData = {{ stage_chart | tojson }};
   const trendData = {{ trend_chart | tojson }};
-
-  new Chart(document.getElementById('stageChart'), {
-    type: 'doughnut',
-    data: {
-      labels: stageData.map(r => r.label),
-      datasets: [{
-        data: stageData.map(r => r.value),
-        backgroundColor: [
-          '#2a78d6', '#0a7a0a', '#e11d48', '#f59e0b', '#64748b', '#8b5cf6',
-          '#06b6d4', '#84cc16', '#ec4899', '#78716c', '#f97316', '#14b8a6',
-          '#a855f7', '#22c55e', '#ef4444', '#6366f1', '#eab308',
-        ],
-      }],
-    },
-    options: {
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } },
-    },
-  });
+  const funnelData = {{ funnel_chart | tojson }};
+  const agentData = {{ agent_chart | tojson }};
 
   new Chart(document.getElementById('trendChart'), {
     type: 'line',
@@ -167,30 +171,83 @@
       scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
     },
   });
+
+  new Chart(document.getElementById('funnelChart'), {
+    type: 'bar',
+    data: {
+      labels: funnelData.map(r => r.label),
+      datasets: [{
+        data: funnelData.map(r => r.value),
+        backgroundColor: '#2a78d6',
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+    },
+  });
+
+  new Chart(document.getElementById('agentChart'), {
+    type: 'bar',
+    data: {
+      labels: agentData.map(r => r.agent),
+      datasets: [
+        {
+          label: 'Connected %',
+          data: agentData.map(r => r.connected_rate),
+          backgroundColor: '#2a78d6',
+          borderRadius: 3,
+        },
+        {
+          label: 'Conversion %',
+          data: agentData.map(r => r.conversion_rate),
+          backgroundColor: '#0a7a0a',
+          borderRadius: 3,
+        },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0, callback: v => v + '%' } } },
+    },
+  });
 </script>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
-      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">By Agent</h2>
-    </div>
-    <table class="w-full text-sm">
-      <thead class="text-xs text-slate-400">
-        <tr><th class="px-4 py-1.5 text-left font-medium">Agent</th><th class="px-2 py-1.5 text-right font-medium">Total</th><th class="px-2 py-1.5 text-right font-medium">Called</th><th class="px-4 py-1.5 text-right font-medium">Not Called</th></tr>
-      </thead>
-      <tbody>
-        {% for row in agent_breakdown %}
-        <tr class="border-t border-slate-100">
-          <td class="px-4 py-1.5">{{ row.name }}</td>
-          <td class="px-2 py-1.5 text-right font-medium">{{ row.total }}</td>
-          <td class="px-2 py-1.5 text-right text-[#0a7a0a]">{{ row.called }}</td>
-          <td class="px-4 py-1.5 text-right text-slate-500">{{ row.total - row.called }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-5">
+  <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+    <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">By Agent</h2>
   </div>
+  <table class="w-full text-sm">
+    <thead class="text-xs text-slate-400">
+      <tr>
+        <th class="px-4 py-1.5 text-left font-medium">Agent</th>
+        <th class="px-2 py-1.5 text-right font-medium">Assigned</th>
+        <th class="px-2 py-1.5 text-right font-medium">Called</th>
+        <th class="px-2 py-1.5 text-right font-medium">Not Called</th>
+        <th class="px-2 py-1.5 text-right font-medium">Interested</th>
+        <th class="px-4 py-1.5 text-right font-medium">Closed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in agent_breakdown %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-1.5">{{ row.name }}</td>
+        <td class="px-2 py-1.5 text-right font-medium">{{ row.total }}</td>
+        <td class="px-2 py-1.5 text-right text-[#0a7a0a]">{{ row.called }}</td>
+        <td class="px-2 py-1.5 text-right text-slate-500">{{ row.total - row.called }}</td>
+        <td class="px-2 py-1.5 text-right text-[#2a78d6]">{{ row.interested }}</td>
+        <td class="px-4 py-1.5 text-right font-medium text-[#0a7a0a]">{{ row.closed }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
       <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">By Lead Type</h2>

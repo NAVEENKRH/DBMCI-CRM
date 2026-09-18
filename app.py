@@ -431,16 +431,26 @@ def dashboard():
     ).fetchone()["c"]
     not_called = total_leads - called
 
+    # A lead only counts as "connected" once someone actually spoke to them —
+    # DNP (attempted, never picked up) doesn't count, and neither do stages
+    # where there was never a real shot at a conversation (Other, LOST, LOST
+    # ONLINE/OFFLINE, REFUSE TO ENGAGE).
+    NOT_CONNECTED_STAGES = ("", db.DUPLICATE_STAGE, "DNP", "Other", "LOST", "LOST ONLINE /OFFLINE", "REFUSE TO ENGAGE")
+    nc_placeholders = ",".join("?" for _ in NOT_CONNECTED_STAGES)
+
     # By agent — a LEFT JOIN with filters in the ON clause (not WHERE) so every
     # active agent still shows a row even with zero matching leads.
     join_extra = f" AND {where_sql}".replace("l.", "l2.") if conds else ""
     agent_breakdown = conn.execute(
         f"SELECT a.name AS name, "
         f"COUNT(l2.id) AS total, "
-        f"SUM(CASE WHEN l2.status NOT IN ('', ?) THEN 1 ELSE 0 END) AS called "
+        f"SUM(CASE WHEN l2.status NOT IN ('', ?) THEN 1 ELSE 0 END) AS called, "
+        f"SUM(CASE WHEN l2.status NOT IN ({nc_placeholders}) THEN 1 ELSE 0 END) AS connected, "
+        f"SUM(CASE WHEN l2.status = 'Interested' THEN 1 ELSE 0 END) AS interested, "
+        f"SUM(CASE WHEN l2.status = 'Closed' THEN 1 ELSE 0 END) AS closed "
         f"FROM agents a LEFT JOIN leads l2 ON l2.assigned_agent_id = a.id {join_extra} "
         f"WHERE a.role = 'agent' GROUP BY a.id ORDER BY a.name",
-        [db.DUPLICATE_STAGE, *params],
+        [db.DUPLICATE_STAGE, *NOT_CONNECTED_STAGES, *params],
     ).fetchall()
 
     source_values = " UNION ALL ".join(["SELECT ? AS name"] * len(db.LEAD_TYPES))
@@ -477,6 +487,16 @@ def dashboard():
         f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status IN ({lost_placeholders})",
         [*params, *LOST_STAGES],
     ).fetchone()["c"]
+    dnp_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status = ?", [*params, "DNP"]
+    ).fetchone()["c"]
+    connected_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status NOT IN ({nc_placeholders})",
+        [*params, *NOT_CONNECTED_STAGES],
+    ).fetchone()["c"]
+    interested_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status = ?", [*params, "Interested"]
+    ).fetchone()["c"]
 
     today_str = date.today().isoformat()
     overdue_conds = conds + [
@@ -493,7 +513,11 @@ def dashboard():
         return round(part / whole * 100, 1) if whole else 0
 
     kpis = dict(
-        call_rate=pct(called, total_leads),
+        attempt_rate=pct(called, total_leads),
+        dnp_rate=pct(dnp_count, total_leads),
+        dnp_count=dnp_count,
+        connected_rate=pct(connected_count, total_leads),
+        connected_count=connected_count,
         conversion_rate=pct(converted, total_leads),
         converted=converted,
         duplicate_rate=pct(duplicate_count, total_leads),
@@ -501,9 +525,10 @@ def dashboard():
         overdue_count=overdue_count,
     )
 
-    # Chart data: stage distribution (skip empty stages so the donut isn't
-    # mostly dead slices) and leads-added-per-day over the selected range.
-    stage_chart = [{"label": (r["status"] or "Not called"), "value": r["c"]} for r in stage_breakdown if r["c"]]
+    # Chart data: leads-added-per-day trend, a funnel (as a shrinking bar
+    # chart — no funnel plugin needed) from raw leads down to closed, and a
+    # per-agent leaderboard of the two rates that actually say whether an
+    # agent's calls are landing and whether those calls are closing.
     trend_rows = conn.execute(
         f"SELECT l.date_added AS d, COUNT(*) AS c FROM leads l "
         f"WHERE {where_sql} AND l.date_added IS NOT NULL AND l.date_added != '' "
@@ -511,6 +536,23 @@ def dashboard():
         params,
     ).fetchall()
     trend_chart = [{"date": r["d"], "value": r["c"]} for r in trend_rows]
+
+    funnel_chart = [
+        {"label": "Total Leads", "value": total_leads},
+        {"label": "Attempted", "value": called},
+        {"label": "Connected", "value": connected_count},
+        {"label": "Interested", "value": interested_count},
+        {"label": "Closed", "value": converted},
+    ]
+
+    agent_chart = [
+        {
+            "agent": r["name"],
+            "connected_rate": pct(r["connected"], r["total"]),
+            "conversion_rate": pct(r["closed"], r["total"]),
+        }
+        for r in agent_breakdown
+    ]
 
     followup_leads = []
     if followup != "all":
@@ -540,7 +582,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         total_leads=total_leads, called=called, not_called=not_called, kpis=kpis,
-        stage_chart=stage_chart, trend_chart=trend_chart,
+        trend_chart=trend_chart, funnel_chart=funnel_chart, agent_chart=agent_chart,
         agent_breakdown=agent_breakdown, source_breakdown=source_breakdown,
         stage_breakdown=stage_breakdown, followup_leads=followup_leads,
         date_preset=date_preset, custom_start=custom_start, custom_end=custom_end,
