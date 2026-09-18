@@ -8,6 +8,7 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta
 
+import psycopg2.extras
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -775,19 +776,66 @@ def leads_sync_run():
     already_synced = int(get_setting(conn, "sheet_synced_rows", 0))
     new_rows = rows[already_synced:]
 
+    # Sync used to insert one row at a time — each row doing a duplicate-check
+    # query, an agent-lookup query, an insert, and a query per remark. With
+    # hundreds/thousands of new rows that's thousands of sequential
+    # round-trips to the database, easily taking minutes and tripping the
+    # server's request timeout (the actual cause of "Internal Server Error"
+    # on a big sync). Instead: load what we need to know up front in a
+    # handful of queries, then insert everything in bulk.
+    existing_phones = {
+        row["phone_norm"]: row["id"]
+        for row in conn.execute("SELECT id, phone_norm FROM leads WHERE phone_norm != ''").fetchall()
+    }
+    agent_by_name = {
+        a["name"].strip().lower(): a["id"] for a in conn.execute("SELECT id, name FROM agents").fetchall()
+    }
+    rr_ids = [
+        a["id"] for a in conn.execute(
+            "SELECT id FROM agents WHERE active = 1 AND role = 'agent' ORDER BY id"
+        ).fetchall()
+    ]
+    rr_pointer_raw = get_setting(conn, "rr_pointer")
+    rr_last = int(rr_pointer_raw) if rr_pointer_raw else None
+    rr_idx = (rr_ids.index(rr_last) + 1) % len(rr_ids) if rr_ids and rr_last in rr_ids else 0
+    rr_used = False
+
+    def resolve_agent_id(name):
+        if not name:
+            return None
+        key = name.strip().lower()
+        canonical = db.AGENT_ALIASES.get(key)
+        if canonical:
+            found = agent_by_name.get(canonical.lower())
+            if found:
+                return found
+        return agent_by_name.get(key)
+
+    def next_rr_agent():
+        nonlocal rr_idx, rr_used
+        if not rr_ids:
+            return None
+        agent_id = rr_ids[rr_idx]
+        rr_idx = (rr_idx + 1) % len(rr_ids)
+        rr_used = True
+        return agent_id
+
+    batch = []
+    seen_phone_first_index = {}  # phone_norm -> index in `batch`, for duplicates within this same sync
     added, duplicates, skipped, invalid = 0, 0, 0, 0
     for r in new_rows:
-        name = r.get("Name", "")
+        name = (r.get("Name", "") or "").strip()
         if not name:
             skipped += 1
             continue
-        phone = r.get("Numbers", "")
-        if len(db.normalize_phone(phone)) < 10:
+        phone = (r.get("Numbers", "") or "").strip()
+        phone_norm = db.normalize_phone(phone)
+        if len(phone_norm) < 10:
             # Not a real phone number (e.g. stray text typed into the wrong
             # cell) — skip rather than create an uncallable, dedup-blind lead.
             invalid += 1
             continue
-        source = r.get("Lead Type", "")
+        source = resolve_source(r.get("Lead Type", ""))
         date_added = parse_sheet_date(r.get("Date", ""))
         agent_name = r.get("Responsible", "")
         email = r.get("Email", "")
@@ -807,17 +855,86 @@ def leads_sync_run():
             # text visible rather than silently dropping it.
             remarks.append(f"(Follow-up noted in sheet, not auto-scheduled: \"{followup_raw}\")")
 
-        _, was_dup, _ = add_lead(
-            conn, name=name, phone=phone, source=source,
-            date_added=date_added, agent_name=agent_name,
-            email=email, yoa=yoa, status=status,
-            next_action_date=next_action_date, next_action_time=next_action_time,
-            remarks=remarks,
-        )
-        if was_dup:
+        dup_id = existing_phones.get(phone_norm)
+        pending_dup_index = None
+        if dup_id is None:
+            pending_dup_index = seen_phone_first_index.get(phone_norm)
+            if pending_dup_index is None:
+                seen_phone_first_index[phone_norm] = len(batch)
+
+        is_dup = dup_id is not None or pending_dup_index is not None
+        agent_id = resolve_agent_id(agent_name)
+        if agent_id is None:
+            agent_id = next_rr_agent()
+
+        batch.append(dict(
+            name=name, phone=phone, phone_norm=phone_norm, email=email or None, yoa=yoa or None,
+            source=source, date_added=date_added,
+            status=db.DUPLICATE_STAGE if is_dup else (status or ""),
+            duplicate_of=dup_id, pending_dup_index=pending_dup_index, agent_id=agent_id,
+            next_action_date=next_action_date, next_action_time=next_action_time, remarks=remarks,
+        ))
+        if is_dup:
             duplicates += 1
         else:
             added += 1
+
+    if batch:
+        now = db.now_iso()
+        raw_cur = conn._conn.cursor()
+        lead_ids = [
+            row[0] for row in psycopg2.extras.execute_values(
+                raw_cur,
+                "INSERT INTO leads (name, phone, phone_norm, email, yoa, source, date_added, "
+                "status, duplicate_of, assigned_agent_id, next_action_date, next_action_time, "
+                "created_at, updated_at) VALUES %s RETURNING id",
+                [
+                    (b["name"], b["phone"], b["phone_norm"], b["email"], b["yoa"], b["source"],
+                     b["date_added"], b["status"], b["duplicate_of"], b["agent_id"],
+                     b["next_action_date"], b["next_action_time"], now, now)
+                    for b in batch
+                ],
+                fetch=True,
+            )
+        ]
+        raw_cur.close()
+
+        # Duplicates against another row earlier in this same batch couldn't
+        # be pointed at a real id until the insert above returned one.
+        intra_batch_updates = [
+            (lead_ids[b["pending_dup_index"]], lead_ids[i])
+            for i, b in enumerate(batch) if b["pending_dup_index"] is not None
+        ]
+        if intra_batch_updates:
+            upd_cur = conn._conn.cursor()
+            psycopg2.extras.execute_values(
+                upd_cur,
+                "UPDATE leads SET duplicate_of = data.orig_id FROM (VALUES %s) AS data(orig_id, row_id) "
+                "WHERE leads.id = data.row_id",
+                intra_batch_updates,
+            )
+            upd_cur.close()
+
+        base = datetime.now()
+        activity_rows = []
+        for i, b in enumerate(batch):
+            for note in b["remarks"]:
+                note = (note or "").strip()
+                if not note:
+                    continue
+                ts = (base + timedelta(seconds=len(activity_rows))).isoformat(timespec="seconds")
+                activity_rows.append((lead_ids[i], b["agent_id"], note, ts))
+        if activity_rows:
+            act_cur = conn._conn.cursor()
+            psycopg2.extras.execute_values(
+                act_cur,
+                "INSERT INTO activities (lead_id, agent_id, note, created_at) VALUES %s",
+                activity_rows,
+            )
+            act_cur.close()
+
+        if rr_used:
+            set_setting(conn, "rr_pointer", rr_ids[rr_idx - 1])
 
     set_setting(conn, "sheet_synced_rows", len(rows))
     conn.commit()
