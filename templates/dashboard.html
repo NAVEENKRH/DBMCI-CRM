@@ -68,7 +68,7 @@
   </div>
 </form>
 
-<div class="grid grid-cols-3 gap-4 mb-5">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-5">
   <div class="bg-white rounded-xl p-4 border border-slate-200">
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Leads</div>
     <div class="text-2xl font-bold mt-1">{{ total_leads }}</div>
@@ -81,7 +81,93 @@
     <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Not Called</div>
     <div class="text-2xl font-bold mt-1 text-slate-500">{{ not_called }}</div>
   </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Call Rate</div>
+    <div class="text-2xl font-bold mt-1">{{ kpis.call_rate }}%</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Conversion Rate</div>
+    <div class="text-2xl font-bold mt-1 text-[#0a7a0a]">{{ kpis.conversion_rate }}%</div>
+    <div class="text-xs text-slate-400 mt-0.5">{{ kpis.converted }} closed</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Lost Rate</div>
+    <div class="text-2xl font-bold mt-1 text-rose-600">{{ kpis.lost_rate }}%</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Duplicate Rate</div>
+    <div class="text-2xl font-bold mt-1 text-slate-500">{{ kpis.duplicate_rate }}%</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 border border-slate-200">
+    <div class="text-xs text-slate-500 font-medium uppercase tracking-wide">Overdue Follow-ups</div>
+    <div class="text-2xl font-bold mt-1 text-amber-600">{{ kpis.overdue_count }}</div>
+  </div>
 </div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden lg:col-span-1">
+    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Lead Stage Distribution</h2>
+    </div>
+    <div class="p-4" style="height: 260px;">
+      <canvas id="stageChart"></canvas>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden lg:col-span-2">
+    <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+      <h2 class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Leads Added Over Time</h2>
+    </div>
+    <div class="p-4" style="height: 260px;">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+  const stageData = {{ stage_chart | tojson }};
+  const trendData = {{ trend_chart | tojson }};
+
+  new Chart(document.getElementById('stageChart'), {
+    type: 'doughnut',
+    data: {
+      labels: stageData.map(r => r.label),
+      datasets: [{
+        data: stageData.map(r => r.value),
+        backgroundColor: [
+          '#2a78d6', '#0a7a0a', '#e11d48', '#f59e0b', '#64748b', '#8b5cf6',
+          '#06b6d4', '#84cc16', '#ec4899', '#78716c', '#f97316', '#14b8a6',
+          '#a855f7', '#22c55e', '#ef4444', '#6366f1', '#eab308',
+        ],
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } } },
+    },
+  });
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: trendData.map(r => r.date),
+      datasets: [{
+        label: 'Leads added',
+        data: trendData.map(r => r.value),
+        borderColor: '#2a78d6',
+        backgroundColor: '#2a78d633',
+        fill: true,
+        tension: 0.2,
+        pointRadius: trendData.length > 60 ? 0 : 2,
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+    },
+  });
+</script>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">

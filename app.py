@@ -399,7 +399,7 @@ def date_bounds(preset, custom_start, custom_end):
 def dashboard():
     conn = db.get_db()
 
-    date_preset = request.args.get("date_preset", "today")
+    date_preset = request.args.get("date_preset", "all")
     custom_start = request.args.get("start", "")
     custom_end = request.args.get("end", "")
     agent_id = request.args.get("agent_id", "")
@@ -459,6 +459,59 @@ def dashboard():
         [*db.STAGES, *params],
     ).fetchall()
 
+    # KPIs for the manager: how much of the pipeline is converting, how much
+    # is dying, and where follow-ups are being missed.
+    CONVERTED_STAGE = "Closed"
+    LOST_STAGES = ("Not Interested", "LOST", "LOST ONLINE /OFFLINE", "REFUSE TO ENGAGE")
+
+    converted = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status = ?",
+        [*params, CONVERTED_STAGE],
+    ).fetchone()["c"]
+    duplicate_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status = ?",
+        [*params, db.DUPLICATE_STAGE],
+    ).fetchone()["c"]
+    lost_placeholders = ",".join("?" for _ in LOST_STAGES)
+    lost_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {where_sql} AND l.status IN ({lost_placeholders})",
+        [*params, *LOST_STAGES],
+    ).fetchone()["c"]
+
+    today_str = date.today().isoformat()
+    overdue_conds = conds + [
+        "l.next_action_date IS NOT NULL",
+        "l.next_action_date < ?",
+        f"l.status NOT IN ({','.join('?' for _ in db.INACTIVE_STAGES)})",
+    ]
+    overdue_params = params + [today_str] + list(db.INACTIVE_STAGES)
+    overdue_count = conn.execute(
+        f"SELECT COUNT(*) AS c FROM leads l WHERE {' AND '.join(overdue_conds)}", overdue_params
+    ).fetchone()["c"]
+
+    def pct(part, whole):
+        return round(part / whole * 100, 1) if whole else 0
+
+    kpis = dict(
+        call_rate=pct(called, total_leads),
+        conversion_rate=pct(converted, total_leads),
+        converted=converted,
+        duplicate_rate=pct(duplicate_count, total_leads),
+        lost_rate=pct(lost_count, total_leads),
+        overdue_count=overdue_count,
+    )
+
+    # Chart data: stage distribution (skip empty stages so the donut isn't
+    # mostly dead slices) and leads-added-per-day over the selected range.
+    stage_chart = [{"label": (r["status"] or "Not called"), "value": r["c"]} for r in stage_breakdown if r["c"]]
+    trend_rows = conn.execute(
+        f"SELECT l.date_added AS d, COUNT(*) AS c FROM leads l "
+        f"WHERE {where_sql} AND l.date_added IS NOT NULL AND l.date_added != '' "
+        f"GROUP BY l.date_added ORDER BY l.date_added",
+        params,
+    ).fetchall()
+    trend_chart = [{"date": r["d"], "value": r["c"]} for r in trend_rows]
+
     followup_leads = []
     if followup != "all":
         today_str = date.today().isoformat()
@@ -486,7 +539,8 @@ def dashboard():
 
     return render_template(
         "dashboard.html",
-        total_leads=total_leads, called=called, not_called=not_called,
+        total_leads=total_leads, called=called, not_called=not_called, kpis=kpis,
+        stage_chart=stage_chart, trend_chart=trend_chart,
         agent_breakdown=agent_breakdown, source_breakdown=source_breakdown,
         stage_breakdown=stage_breakdown, followup_leads=followup_leads,
         date_preset=date_preset, custom_start=custom_start, custom_end=custom_end,
