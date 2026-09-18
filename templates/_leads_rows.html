@@ -6,7 +6,12 @@
   </td>
   <td class="px-4 py-2 text-slate-500">{{ l.date_added or "—" }}</td>
   <td class="px-4 py-2"><a href="{{ url_for('lead_detail', lead_id=l.id) }}" class="lead-link font-medium text-[#1f5fb0] hover:underline" data-id="{{ l.id }}">{{ l.name }}</a></td>
-  <td class="px-4 py-2 text-slate-500">{{ l.phone or "" }}</td>
+  <td class="px-4 py-2 text-slate-500">
+    {{ l.phone or "" }}
+    {% if l.phone_count and l.phone_count > 1 %}
+    <span class="ml-1 inline-block bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 text-xs align-middle" title="This number appears on {{ l.phone_count }} leads total">×{{ l.phone_count }}</span>
+    {% endif %}
+  </td>
   <td class="px-4 py-2 text-slate-500">{{ l.agent_name or "Unassigned" }}</td>
   <td class="px-4 py-2">{{ sb.status_badge(l.status) }}</td>
   <td class="px-4 py-2 text-slate-500">{{ format_followup(l.next_action_date, l.next_action_time) }}</td>

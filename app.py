@@ -594,10 +594,16 @@ def leads_list():
     agent_id = request.args.get("agent_id", "")
     source = request.args.get("source", "")
     search = request.args.get("q", "").strip()
+    repeated_only = request.args.get("repeated", "") == "1"
 
+    # phone_count tells every row (not just ones already tagged "duplicate")
+    # how many leads total share its phone number — the "duplicate" status
+    # only ever lands on the later arrivals, never the original, so this is
+    # the only way to spot the original half of a repeat from the list view.
     query = (
-        "SELECT l.*, a.name AS agent_name FROM leads l "
-        "LEFT JOIN agents a ON a.id = l.assigned_agent_id WHERE 1=1"
+        "SELECT l.*, a.name AS agent_name, "
+        "(SELECT COUNT(*) FROM leads l3 WHERE l3.phone_norm = l.phone_norm AND l3.phone_norm != '') AS phone_count "
+        "FROM leads l LEFT JOIN agents a ON a.id = l.assigned_agent_id WHERE 1=1"
     )
     params = []
     if status != "__all__":
@@ -613,6 +619,11 @@ def leads_list():
         query += " AND (l.name LIKE ? OR l.phone LIKE ?)"
         like = f"%{search}%"
         params.extend([like, like])
+    if repeated_only:
+        query += (
+            " AND l.phone_norm != '' AND (SELECT COUNT(*) FROM leads l4 "
+            "WHERE l4.phone_norm = l.phone_norm AND l4.phone_norm != '') > 1"
+        )
     query += " ORDER BY l.updated_at DESC"
 
     leads = conn.execute(query, params).fetchall()
@@ -630,6 +641,7 @@ def leads_list():
         filter_agent=agent_id,
         filter_source=source,
         search=search,
+        filter_repeated=repeated_only,
         all_sources=all_sources,
     )
 

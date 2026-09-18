@@ -47,6 +47,12 @@
       {% endfor %}
     </select>
   </div>
+  <div>
+    <label class="flex items-center gap-1.5 text-xs text-slate-500 mb-1.5" title="Any lead whose phone number appears on more than one lead — including the original, which never gets tagged &quot;duplicate&quot; itself">
+      <input type="checkbox" name="repeated" value="1" {% if filter_repeated %}checked{% endif %} class="rounded border-slate-300">
+      Repeated numbers only
+    </label>
+  </div>
   <button type="submit" class="px-4 py-1.5 rounded-lg bg-slate-800 text-white text-sm font-medium">Filter</button>
   <a href="{{ url_for('leads_list') }}" class="px-4 py-1.5 rounded-lg text-sm text-slate-500">Clear</a>
 </form>
